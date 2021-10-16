@@ -1,4 +1,4 @@
-# Experimental-Design-and-Data-Analysis-
+# Experimental-Design-and-Data-Analysis
 
 - design experiments and analyze the results according to the design
 
