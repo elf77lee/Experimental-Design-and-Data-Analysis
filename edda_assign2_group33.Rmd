@@ -1,0 +1,269 @@
+---
+title: "EDDA_assign2_Group33"
+author: "Wenbo Sun, Yuhao Qian, Meifang Li"
+date: "3/7/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library('car')
+options(digits=3)
+data3=read.table("cow.txt")
+data3$id=factor(data3$id);data3$treatment=factor(data3$treatment);
+data3$per=factor(data3$per);data3$order=factor(data3$order)
+data4=read.table("austen.txt")
+bread=read.table("bread.txt",header = TRUE)
+crime=read.table('expensescrime.txt',header = TRUE)
+crime2=read.table('expensescrime2.txt',header = TRUE)# removed line 5,35,44
+search=read.table("search.txt",header = TRUE)
+library(lme4)
+```
+## Exercise 1
+
+**a)** The randomization process can be implemented as follows: the 18 slices were randomized to the 6 combinations of conditions, cold&dry/cold&wet/intermediate&dry/intermediate&wet/warm&dry/warm&wet, each combinations sampled 3 times.
+
+```{r}
+I=list("cold","intermediate","warm");J=list("dry","wet");N=3
+rbind(rep(I,each=N*length(J)),rep(J,N*length(I)),sample(1:(N*length(I)*length(J))))
+```
+
+**b)** The boxplots show that the bread can keep longer in the cold environment than in the intermediate and warm environment while wet environment show more influence on hours than dry environment. In the interaction plots, we could also tell that the bread keep longer in wet environment when it is cold but shorter when it is intermediate or warm.
+```{r fig.height=4, fig.width=9}
+attach(bread)
+par(mfrow=c(1,2))
+boxplot(hours~environment);boxplot(hours~humidity)
+```
+```{r fig.height=5, fig.width=13}
+par(mfrow=c(1,2))
+interaction.plot(environment,humidity,hours);
+interaction.plot(humidity,environment,hours)
+```
+
+**c)** The p-value for $H_0:\gamma_{i,j}=0$ for all $(i,j)$ is $3.705*10^{-7}$ which is smaller than 0.05, thus could be rejected. Hence, there is a significant evidence for interaction between the factors temperature and humidity.
+```{r}
+bread$environment=as.factor(bread$environment);bread$humidity=as.factor(bread$humidity)
+breadaov=lm(hours~environment*humidity,data = bread);anova(breadaov)
+```
+
+**d)** According to the coefficients of estimate in the result, the temperature has the greatest influence on the decay with cold=364/intermediate=364-124=240/warm=364-100=264, all keep shorter than in the humidity with dry=364/wet=364+72=436. However, this is not a good question because we have proved there is significant interaction effect between these factors and we cannot tell the exclusive effect of each factor without considering the interaction effect.
+```{r}
+summary(breadaov) 
+```
+
+**e)** The QQ-plot looks a bit deviated in the extremes but it could be normal. Some data-points seem extreme in the fitted plot. There are two outliers, one is too high and one is too low for the residuals.
+```{r fig.height=3, fig.width=6}
+par(mfrow=c(1,2))
+qqnorm(residuals(breadaov));plot(fitted(breadaov),residuals(breadaov))
+```
+
+## Exercise 2
+
+**a)** The Block represent the five different types of student and the Inter represent three different types of interfaces. We have 15 students so each combination we sample one time as follows: the 5 rows are the 5 blocks in which 1/2/3 represent 3 types of interfaces.
+```{r}
+Block=5;Inter=3;N=1
+for (i in 1:Block) print(sample(1:(N*Inter)))
+```
+
+**b)** We use two-way anova to test the null hypothesis. As shown in the result, the p-value of interface is 0.0131<0.05, thus the $H_0:\alpha_1=\alpha_2=\alpha_3=0$ is rejected, the interface effects are siginificantly different from 0 and the search time is not the same for all interfaces. We could also tell that the interface 3 requires the longest search time and the combination of skill level 1 and interface 1 takes the shortest search time. The time it takes a skill level 3 user to find the product uses interface 3 is 15.013+3.033+4.46=22.506.
+```{r}
+attach(search)
+search$skill=as.factor(search$skill);search$interface=as.factor(search$interface)
+searchanov=lm(time~skill+interface,data=search)
+anova(searchanov)
+summary(searchanov)[["coefficients"]]
+```
+
+**c)** The QQ-plot look like normal and the residuals don't change systematically with the fitted values. Thus we can assume the populations have equal variances. 
+```{r fig.height=3, fig.width=6}
+par(mfrow=c(1,2))
+qqnorm(residuals(searchanov));plot(fitted(searchanov),residuals(searchanov))
+```
+
+**d)** We use the Friedman test to test whether there is an effect of interface. The result show that the p-value for testing($H_0:$ no interface effect )is 0.04076<0.05, thus $H_0$ is rejected and there is an effect of interface.
+```{r}
+friedman.test(time,interface,skill,data=search)
+# friedman.test(time,skill,interface,data=search)
+```
+
+**e)** We use a one-way anova test to test whether the search time is the same for all interfaces, ignoring the variable sill. The p-value is 0.09642>0.05, which means we cannot reject the null hypothesis and the search time is the same for all interfaces. However, the QQ-plot does not show normality and the residuals spread in a systematical way in the fitted plot, thus the assumption of independent error fails in this experiment. Also we cannot tell the exclusive effect of interface with the exist of block factor because the units might be dissimilar between the blocks so this one-way anova is both wrong and not useful on this dataset.
+```{r fig.height=3, fig.width=6}
+searchanov1=lm(time~interface,data=search)
+anova(searchanov1)
+par(mfrow=c(1,2))
+qqnorm(residuals(searchanov1));qqline(residuals(searchanov1))
+plot(fitted(searchanov1),residuals(searchanov1))
+```
+
+## Exercise 3
+**a)**
+In this question, we test the influence of treatment by the ordinary fixed effect model. We left out the order factor because the fixed effect model can not estimate the sequence influences. Regarding the order of factors, we put the 'treatment' at the end of the formula because the anova is a sequential analysing model in which order may affect the p-value of factors. The results are presented as follows:
+```{r fig.height=3, fig.width=6}
+attach(data3)
+fixed=lm(milk~id+per+treatment)
+anv=anova(fixed);anv
+summary(fixed)[["coefficients"]]
+par(mfrow=c(1,2))
+qqnorm(residuals(fixed))
+plot(fitted(fixed),residuals(fixed))
+
+```
+
+The results show that 'treatment', also called feedingstuffs in this problem,  has no significant influence on milk production because the p-value of 'treatment' is 0.516 larger than 0.05. We also diagnose the normality and spread of the residuals. The normality is doubtful because the qqnorm in the left plot is slightly curved. Also, the residuals do not distribute randomly: the spread shows bigger for larger fitted values. Hence, the test result is not sufficient, and we have to consider the influences of feed order.
+
+**b)**
+For a comprehensive analysis, we conduct test by mixed effect model in which we consider the individual as 'random effect'. Because different individuals may have various reflection which is independent of the experiment setting, we regard the individuals as random samples from a population. 
+```{r exec_3b}
+mixed=lmer(milk~(1|id)+order+per+treatment,REML=FALSE);
+s_mixed=summary(mixed);s_mixed[["varcor"]];s_mixed[["coefficients"]]
+```
+In the results above, we can figure out that the standard deviation of factor 'id' is 11.54, quite large. The effect of treatment and period are identical to results from fixed effect model. To futher determine the influence of treatment, we leave out the treatment and conduct to mixed effect model to the remaining factors. The difference between the two models indicates the treatment effect. 
+```{r }
+mixed1=lmer(milk~(1|id)+order+per,REML=FALSE)
+anova(mixed1,mixed)
+```
+Likewise, the result shows p-value is 0.446 >0.05, indicating treatment does not significantly influence milk production, as the fixed effect model indicates. In the previous question, we can figure out the period has little effect. Hence, the difference between the fixed and mixed model results is minor, even considering the order effect. 
+
+**c)**
+Conducting t-test means ignoring the order effect. In b), we find that period and order's total effect contributes to -5.86, which is a large fraction, compared to the -0.51 contributed by treatment. Hence, ignoring the order effect is not a reasonable estimation method, indicating t-test on treatment is invalid to this experiment.
+But we still examine the treatment by t-test, regarding the order as exchangeable. For comparison, we refit the model by id and treatment, leaving out the order and period. 
+```{r exec_3c}
+attach(data3)
+exchangable=lm(milk~id+treatment)
+anv_ex=anova(exchangable);anv_ex
+t.test(milk[treatment=="A"],milk[treatment=="B"],paired=TRUE)
+```
+We observe that p-value of both methods is the same, p-value=0.828>0.005, both insignificant, which is compatible with the conclusion from a). 
+
+## Exercise 4
+**a)**
+The target of this question is testing the consistency of literary style using a contingency table. A word counting from one literature is a column of the contingency table. Comparing across pieces of literature is comparing word distribution between columns, which is a test for homogeneity.
+
+**b)**
+We select three pieces of literature written by Austen to test the consistency of her word using. To find differences, we can compute the residuals, which reveals the deviation between expectation and observation.
+```{r}
+z=chisq.test(data4[,c("Sense","Emma","Sand1")]);z
+residuals(z)
+
+```
+
+
+
+```{r}
+# check chi-square assumption
+che=data4[,c("Sense","Emma","Sand1")]
+rs=apply(che,1,sum);cs=apply(che,2,sum)
+a=as.vector(rs/sum(rs));b=as.vector(cs/sum(cs))
+che[,1]=che[,1]*a;che[,2]=che[,2]*a;che[,3]=che[,3]*a
+che[1,]=che[1,]*b;che[2,]=che[2,]*b;che[3,]=che[3,]*b
+che[4,]=che[4,]*b;che[5,]=che[5,]*b;che[6,]=che[3,]*b
+che
+```
+The p-value 0.267 indicates the difference between the three works is not statistically significant. But we also can find some inconsistency in detail. The word 'a' in Sand1 is apparently more frequent than in the other two works. On the contrary, the frequency of the word 'that' is lower.
+
+**c)**
+To test the word consistency between the admirer's work and Austen's work, we add Sand2 to the contingency table, applying the chi-squared test again.
+```{r}
+z1=chisq.test((data4));z1
+residuals(z1)
+```
+After adding Sand2, the p-value decreases dramatically to 6.2e-05, which means the distributions of these four works are significantly different. Incorporating the conclusion from b), we can say that the admirer's imitation is not successful. Specifically, Sand2 has much more 'an' and 'with', but has significant less 'that' than Austen's three works.
+
+## Exercise 5.
+**a)**
+We first make some graphical summaries of the data. 
+```{r,fig.height=4,fig.length=4}
+plot(crime[,2:7]) 
+```
+
+
+```{r ,fig.height =3, fig.width = 6}
+par(mfrow=c(1,2));plot(cooks.distance(lm(expend~bad,data=crime)),type ='b',ylab = 'bad') # 5, 35,44
+plot(cooks.distance(lm(expend~crime,data=crime)),type ='b',ylab = 'crime')
+```
+
+```{r ,fig.height =3, fig.width = 9}
+par(mfrow=c(1,3))
+plot(cooks.distance(lm(expend~lawyers,data=crime)),type ='b',ylab = 'lawyers') #5
+plot(cooks.distance(lm(expend~employ,data=crime)),type ='b',ylab = 'employ') # 5
+plot(cooks.distance(lm(expend~pop,data=crime)),type ='b',ylab = 'pop') # 5, 35,44
+```
+Since we consider a data point with close to or larger than 1 Cook's distance as an influence point. After computing and plotting the Cook's distance for each variable, we notice that the 5th, 35th, 44th points both in bad and pop, the 5th points both in lawyers and employ are all influence points. Hence, we would remove these data sets when we fitting a linear model in b) since all the VIF is larger than 5.
+```{r}
+v1=vif(lm(expend~bad+lawyers,data=crime));v2=vif(lm(expend~bad+employ,data=crime))
+v3=vif(lm(expend~bad+pop,data=crime));v4=vif(lm(expend~lawyers+employ,data=crime))
+v5=vif(lm(expend~lawyers+pop,data=crime));v6=vif(lm(expend~employ+pop,data=crime))
+v1;v2;v3;v4;v5;v6
+```
+As we can see in the first scatter plot in this section, there are four variables(bad/lawyers/employ/pop) seem to be collinears. After calculating the variance inflation factor(VIF) of each possible pair, we could tell that the following pair of variables have problem of collinearity:"bad+pop", "lawyers+employ", "lawyers+pop", "employ+pop" .
+
+**b)**
+We also fit the raw data(with influence points) to another linear model using the same methods. Both results are $expend = -110.7+ 0.0297*employ+0.0269* lawyers+ e_n$, with $R^2=0.9632$. However, this model not only has collinearity problem but also fails the model assumption, as the qq-norm plot does not look well. Hence, fitting a linear model with cleaned data(without influence points) could improve the result.
+
+Then we use the step-up and step-down method separately to fit a linear regression model to the cleaned data. Firstly we implemented the step-up method:
+```{r}
+s=summary(lm(expend~bad,data=crime2))$coefficients;
+s;summary(lm(expend~bad,data=crime2))$r.squared #0.82
+s=summary(lm(expend~crime,data=crime2))$coefficients;
+s;summary(lm(expend~crime,data=crime2))$r.squared
+s=summary(lm(expend~lawyers,data=crime2))$coefficients;
+s;summary(lm(expend~lawyers,data=crime2))$r.squared # 0.81
+s=summary(lm(expend~employ,data=crime2))$coefficients;
+s;summary(lm(expend~employ,data=crime2))$r.squared#0.95 best
+s=summary(lm(expend~pop,data=crime2))$coefficients;
+s;summary(lm(expend~pop,data=crime2))$r.squared#0.92
+```
+
+We start with fitting all 5 possible simple linear regression models. All the variables are significant in the tests and we select "employ" with the highest $R^2=0.955$. The current model is $expend\sim employ$.
+```{r}
+summary(lm(expend~employ+bad,data=crime2))$coefficients
+summary(lm(expend~employ+bad,data=crime2))$r.squared #0.9569
+summary(lm(expend~employ+crime,data=crime2))$coefficients
+summary(lm(expend~employ+crime,data=crime2))$r.squared #0.9649
+summary(lm(expend~employ+lawyers,data=crime2))$coefficients 
+summary(lm(expend~employ+lawyers,data=crime2))$r.squared #0.9592
+summary(lm(expend~employ+pop,data=crime2))$coefficients#
+summary(lm(expend~employ+pop,data=crime2))$r.squared #0.9582
+```
+Then we extend the obtained model with other four possible variables. "crime" not only has highest $R^2=0.9649$, but also is significant in the second round. Thus the model turns to $expend\sim employ+crime$.
+
+```{r}
+s=summary(lm(expend~employ+crime+bad,data=crime2))$coefficients #p 0.399
+s;summary(lm(expend~employ+crime+bad,data=crime2))$r.squared#
+s=summary(lm(expend~employ+crime+lawyers,data=crime2))$coefficients#p 0.237
+s;summary(lm(expend~employ+crime+lawyers,data=crime2))$r.squared
+s=summary(lm(expend~employ+crime+pop,data=crime2))$coefficients #1.953e-04
+s;summary(lm(expend~employ+crime+pop,data=crime2))$r.squared #0.974
+```
+In the third round, only pop is significant, given that p-value=1.95e-04. Then we add pop to the linear model.
+```{r}
+summary(lm(expend~employ+crime+pop+bad,data=crime2))$coefficients #0.521
+summary(lm(expend~employ+crime+pop+lawyers,data=crime2))$coefficients #0.227
+```
+If continuously add the fourth possible variable bad or lawyers, we find that p-value is 0.521 and 0.227,so these two variables are not significant. Thus we terminate the step-up method here and the final model is $expend = -249.856+ 0.021*employ+0.055*crime+0.071*pop+e_n$, with $R^2=0.974$.
+
+Now we move to the step-down method and start with a full model, containing all explanatory variables. The first variable removed is 'bad' since it has the highest p-value 0.677 (>0.05).
+```{r}
+summary(lm(expend~bad+crime+lawyers+employ+pop,data=crime2))$coefficients # remove crime
+```
+
+
+```{r}
+summary(lm(expend~crime+lawyers+employ+pop,data=crime2))$coefficients # remove lawyers
+```
+"lawyers" has the highest p-value 0.227 in the second round and it should be deleted. Then the model becomes $expend \sim crime+employ+pop$.
+```{r}
+summary(lm(expend~crime+employ+pop,data=crime2))$coefficients # stop
+```
+In this round, all the remaining variables are significant as p-value smaller than 0.05. Thus we stop the step-down method here and the final result is $expend = -249.856+ 0.021*employ+0.055*crime+0.071*pop+e_n$, with $R^2=0.974$. These two methods eventually have the same result.
+
+**c)**
+```{r, fig.height =4, fig.width = 8}
+bestlm=lm(expend~crime+employ+pop,data=crime2);par(mfrow=c(1,2))
+cor(crime2$crime,crime2$expend);cor(crime2$employ,crime2$expend);cor(crime2$pop,crime2$expend)
+qqnorm(residuals(bestlm));plot(fitted(bestlm));shapiro.test(residuals(bestlm))
+```
+As we already seen in the scatter plot, there are strong linearities between $expend\sim employ$ and $expend\sim pop$. We could confirm this assumption as the correlation is 0.977 and 0.960 respectively. But somehow $expend\sim employ$ does not have a clear linear relation.
+If we look at the qq-norm plot of the residual of this model, it looks good as almost all the points are on a straight line. Besides, the scatter plot of this fitted model does not have a systematical pattern. Thus, this model fits the data well.
+
+

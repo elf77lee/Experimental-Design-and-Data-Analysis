@@ -1,0 +1,229 @@
+---
+title: "EDDA_assign3_Group33"
+author: "Wenbo Sun, Meifang Li, Yuhao Qian"
+date: "3/18/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+titan=read.table("titanic_copy.txt",header=TRUE,sep="\t")
+attach(titan)
+mili=read.table("africa.txt",header = TRUE)
+mili$pollib=as.factor(mili$pollib)
+```
+
+## Exercise 1
+
+**a)** The informative plot of the data is as follows: "i" represents the isolated group, "l" and "h" represent the low and high group respectively.
+According to the estimated in the summary of one-way anova, the longevities for the three conditions are in the following table.
+We can tell from the table that the longevities will decrease as the sexual activities of flies increase.
+
+Category|isolated|low|high
+------ | ------------------ | --------------------- |----------------------|
+longevity|61.52|54.59|36.68
+
+```{r fig.height=3.6, fig.width=5.5}
+flies=read.table("fruitflies.txt",header = TRUE)
+loglongevity=log10(flies$longevity)
+flies$loglongevity=loglongevity
+flies$Colour="black"
+flies$Colour[flies$activity=="isolated"]="red"
+flies$Colour[flies$activity=="low"]="blue"
+plot(flies$loglongevity~flies$thorax,col=flies$Colour,pch=as.character(flies$activity))
+```
+
+```{r}
+flies$activity=as.factor(flies$activity)
+one_anov=lm(loglongevity~activity,data=flies)
+summary(one_anov) 
+```
+```{r}
+y1=10^(1.56438);y1
+y2=10^(1.56438+0.22463);y2
+y3=10^(1.56438+0.17272);y3
+```
+
+**b)** According to the estimated in the summary of two-way anova, the sexual activity decreases the longevity of the flies. The estimated longevities for the three groups, for a fly with average thorax length are in the following table.
+
+Category|isolated|low|high
+------ | ------------------ | --------------------- |----------------------|
+longevity|59.45|52.51|39.46
+
+```{r}
+flies$activity=as.factor(flies$activity)
+flies$thorax=as.numeric(flies$thorax)
+two_anov=lm(loglongevity~thorax+activity,data=flies)
+summary(two_anov)
+```
+
+```{r}
+mu_tho=mean(flies$thorax);mu_tho
+y1=10^(0.52938+1.29376*mu_tho);y1
+y2=10^(0.52938+1.29376*mu_tho+0.17805);y2
+y3=10^(0.52938+1.29376*mu_tho+0.12408);y3
+```
+**c)** The red spots and line represent the isolated group, the blue spots and line represent the low group and the black spots and line represent the high group. As shown in the figure, all three groups show very similar slope in the line and the longevity is larger when the throax length is larger. And we perform a test testing for the interaction between factor activity and predictor thorax. The p-value testing for $H_0:\beta_1=\beta_2=\beta_3$ is 0.1536 >0.05, so $H_0$ cannot be rejected, there is no interaction between activity and thorax and the dependence is similar under all three conditions of sexual activity.
+```{r fig.height=4, fig.width=6}
+plot(flies$loglongevity~flies$thorax,col=flies$Colour,pch=unclass(flies$activity))
+flies_iso=subset(flies,activity=="isolated")
+flies_low=subset(flies,activity=="low")
+flies_high=subset(flies,activity=="high")
+abline(lm(flies_iso$loglongevity~flies_iso$thorax,data=flies_iso),col="red")
+abline(lm(flies_low$loglongevity~flies_low$thorax,data=flies_low),col="blue")
+abline(lm(flies_high$loglongevity~flies_high$thorax,data=flies_high),col="black")
+```
+```{r}
+flies3=lm(loglongevity~activity*thorax,data=flies);anova(flies3)
+```
+**d)** We prefer the analyses with thorax length because the p-value of thorax is $1.14*10^{-14}$<0.05 in the analyses, which means thorax has significant effect on the longevity. So it is wrong to analyze the longevity without considering the factor thorax.
+
+**e)** The QQ-norm plot look like normal and the residuals don't change systematically with the fitted values.
+```{r fig.height=3, fig.width=6}
+par(mfrow=c(1,2))
+qqnorm(residuals(two_anov));plot(fitted(two_anov),residuals(two_anov))
+```
+
+**f)** The p-values for both factors are smaller than 0.05 so they both have significant effects on the longevity. And the QQ-plot look like normal and the residuals in the fitted plot show some extreme values. Thus it is wise to use the logarithm because it can reduce the gap between the extreme values and make the data more smooth.
+```{r fig.height=3, fig.width=6} 
+flies4=lm(longevity~thorax+activity,data=flies)
+drop1(flies4,test="F")
+par(mfrow=c(1,2))
+qqnorm(residuals(flies4));plot(fitted(flies4),residuals(flies4))
+```
+
+## Exercise 2
+
+**a)** 
+We first examine the raw data and find more than half of age data are missing, denoted by NA. Hence, we omit NA data for generating a quantitative summary of age distribution. We set 4 buckets for ages as (0,14), [14,30), [30,50) and [50, ], each of which represents younger, teenager, middle-aged and elder. Then we count the survivor number and survival rates of each group as follows:
+
+```{r fig.height=4, fig.width=8}
+titan$PClass=as.factor(titan$PClass)
+titan$Sex=as.factor(titan$Sex)
+
+tot_age=xtabs(~age_group,data=na.omit(titan))
+par(mfrow=c(1,2))
+barplot(xtabs(Survived~age_group,data=na.omit(titan))/tot_age,xlab="age group", ylab="survival odd")
+barplot(tot_age,xlab="age group",ylab="total number")
+```
+We find that youngers have a higher survival rate than other age groups. Besides, we also generate a 2-dimensional survivor counting table regarding PClass and Sex and compute each class-sex combination's survival rate. Here we use the entire dataset because missing ages does not affect the statistics.
+```{r}
+sx_tot=xtabs(~PClass+Sex,data=titan)
+sx_svv=xtabs(Survived~PClass+Sex,data=titan)
+sx_svv;sx_svv/sx_tot
+```
+Generally speaking, females have higher survival rates than males in all classes; both male and female passengers from 1st class have a higher probability of surviving; females' survival rate from 3rd class is much lower than the other two higher classes.
+
+**b)**
+We fit a logistic model for association between survival status and variable PClass, Age and Sex. Taking PClass and Age as factors and omitting rows missing age data, we have a model as follows:
+```{r ex2.b}
+lr1=glm(Survived~PClass+Age+Sex,family="binomial",data=na.omit(titan))
+summary(lr1)
+drop1(lr1,test="Chisq")
+```
+Without considering the interaction between predictors, we apply drop1 to examine our model and find all three variables are statistically significant because p-values are all less than 0.05. Regarding the coefficients of variables, we find that PClass 2nd, PClass 3rd, Age and sex male have negative coefficients, which means all these four variables lower the survival probability. Specifically, a deviance $\Delta$ in a single variable changes the odds multiplied by $e^{\Delta}$. For example, PClass changes from 1st to 2nd, the odds $\frac{P(Y=1)}{P(Y=0)}$ multiplies $e^{-1.292}$; Age, as a predictor add 1 years, the odds multiplies $e^{-0.04}$. These statistics conform to our observation in question a). 
+
+**c)**
+We further investigate the interactions of Age-Sex and Age-PClass by changing the formula in the generic linear model. 
+```{r ex2.c}
+lr2=glm(Survived~Age*Sex+PClass,family="binomial")
+lr3=glm(Survived~Age*PClass+Sex,family="binomial")
+drop1(lr3,test="Chisq")
+drop1(lr2,test="Chisq")
+```
+According to results from drop1, the p-value of Age-Sex interaction is less than 0.05, indicating the statistical significance, whereas Age-PClass doesn't show such significance.
+
+Based on this conclusion, we predict survival probabilities of new data using Age*PClass+Sex because of the significance. The result is demonstrated as follows. 
+```{r}
+newdata=data.frame(Sex=c("male","female"),PClass=c("1st","2nd","3rd"),Age=rep(53,times=6))
+pd=predict(lr2,newdata,type="response")
+newdata$Predict=pd
+newdata
+```
+**d)**
+The logistic regression model in c) computes survival probability given a combination of predictors. We can take the probability larger than 0.5 as 1 (Survived) to predict the binary survival status. As for quality justification, we can use F-score. The F-score is a measurement of binary classification's accuracy. 
+
+The first step of computing the F-score is collecting and splitting sample data into a test set and a training set. We use the training set to fit a model then predict the survival status by the test set. 
+
+Since we have the actual status of the test set, we then can compare the results of prediction and raw data, constructing a confusion matrix. A confusion matrix consists of four elements, True-Positive (TP), True-Negative(TN), False-Positive(FP) and False-Negative(FN), which are counted from the comparison between prediction and actual value. The F-score is computed by $$F_{1}=\frac{2TP}{2TP+FP+FN}$$
+The highest possible value of F-score is 1.0, the higher the better.
+
+**e)**
+Since the contingency table does not use the age data, we can use the entire data set. To examine the effect of PClass and Sex on survival status, we count the survivor numbers among survived passengers. Then apply the contingency table test on this matrix. Since we focus on the effect of two factors, we can combine each factor with survival status and apply the test two times to examine whether each category comes from the same distribution given survival status.
+
+We first test PClass and Survived. Computing the row sum and column sum to examine whether the chisq.test is sufficient for this contingency table.
+```{r}
+svv_cnt=xtabs(~Survived+PClass,data=titan)
+svv_cnt
+checkE=svv_cnt
+rowsum=apply(svv_cnt,1,sum);a=as.vector(rowsum/sum(rowsum))
+colsum=apply(svv_cnt,2,sum);b=as.vector(colsum/sum(colsum))
+checkE[,1]<-checkE[,2]*a;checkE[,2]<-checkE[,2]*a;
+checkE[,2]<-checkE[,2]*a
+checkE[1,]<-checkE[1,]*b;checkE[2,]<-checkE[2,]*b;
+checkE
+```
+More than 80% of expected counts are larger than 5, the Chi-square test is reliable.
+```{r ex2.e}
+z=chisq.test(svv_cnt)
+z;residuals(z)
+```
+The results show that the survival distribution of each passenger class has a significant difference because the p=value is less than 0.05. We can see the 1st and 2nd class have higher survival number than 3rd class.
+
+Then we test the gender factor. The contingency table of gender and survived is 2x2. We can use Fisher's test to compute exact p-value.
+```{r}
+svp_cnt=xtabs(~Survived+Sex,data=titan)
+svp_cnt
+fisher.test(svp_cnt)
+```
+The fisher test is also get p-value less than 0.05, which conforms the conclusion from a) and b), gender also presents significant effect on survival status regarding the p-value: female has higher survival rate. 
+
+**f)** 
+If we only care about the qualitative effect of gender and class, the contingency table is also applicable. The relative advantage of the contingency table over logistic regression is that the method only relies on counting numbers, which means the implementation can be fast, and the result is intuitive. But the contingency table can not give a quantitative conclusion. We do not know to what extent a factor affect the survival rate.
+
+The logistic regression, as a generic linear model, shows qualitative effects by signs of coefficients. Moreover, we can use the model to predict new data out of our samples. But the modelling method is relatively more complicated compared with the contingency table. Fitting a model needs data processing and model justification, which can not be handled by a simple p-value test as we discussed in question d). 
+
+
+ 
+## Exercise 3
+**a)** 
+We first perform the Poisson regression with all the explanatory variables. As we can see in the summary, only the numerical variables 'oligarchy', 'parties' and the categorical variable 'pollib' are significant, while the remaining variables are not(p-value larger than 0.05). 'oligarchy' and 'parties' have positive effect on the number of military coups, whilst political liberalization has negative effect.
+```{r}
+po=glm(miltcoup~oligarchy+pollib+parties+pctvote+popn+size+numelec+numregim,
+       data = mili,family = poisson)
+summary(po)
+```
+**b)** 
+Then we apply the step-down method to reduce the unnecessary variables, removing the variable having the highest p-value in each round. The variables are removed in the order of 'numlec(p=0.67054)', 'numregim(p=0.42075 )', 'size(p=0.33262)', 'popn(p=0.30204 )', 'popvote(p=0.18383)'. The final model is
+$log\lambda=0.207+0.091*oligarchy+0.022*parties-0.495*pollib1-1.112*pollib2$, where 'pollib1' and 'pollib2' are binomial and mutually exclusive. Besides 'pollib1', all the remaining variables are significant. But we can not drop 'pollib1' solely since the result of ANCOVA indicated that 'pollib' is a significant variable(p-value=0.02727<0.05).
+
+When comparing the models in a) and b), we notice that both models have the null deviance of 65.945, but the residual deviances are different: the residual deviance of the second model(32.822) is closer to its degrees of freedom(31), as the first model is 28.249 and its degrees of freedom is 26. Hence, we prefer the model with fewer explanatory variables.
+```{r}
+summary(glm(miltcoup~oligarchy+pollib+parties+pctvote+popn+size+numelec+numregim,
+            data=mili,family=poisson))$coefficients#remove numlec
+summary(glm(miltcoup~oligarchy+pollib+parties+pctvote+popn+size+numregim,
+            data=mili,family=poisson))$coefficients #numerigm
+summary(glm(miltcoup~oligarchy+pollib+parties+pctvote+popn+size,
+            data=mili,family=poisson))$coefficients #size
+summary(glm(miltcoup~oligarchy+pollib+parties+pctvote+popn,
+            data=mili,family=poisson))$coefficients #popn
+summary(glm(miltcoup~oligarchy+pollib+parties+pctvote,
+            data=mili,family=poisson))$coefficients #popvote
+summary(glm(miltcoup~oligarchy+pollib+parties,data=mili,family=poisson))
+drop1(glm(miltcoup~oligarchy+pollib+parties,data=mili,family=poisson),test='Chisq')
+```
+
+
+**c)** 
+```{r}
+bestmili=glm(miltcoup~oligarchy+pollib+parties,data=mili,family=poisson)
+tt=apply(mili[,c(2,4,5,6,7,8,9)],2,mean)
+newmili2=data.frame(oligarchy=rep(tt[1],times=3),pollib=c(0,1,2),parties=rep(tt[2],times=3))
+newmili2$pollib=as.factor(newmili2$pollib)
+pred2=predict(bestmili,newmili2,type = 'response');pred2
+```
+The predicted 'miltcoup' for the three 'pollib' is 2.908, 1.772 and 0.956 respectively. This result coherent with the negative coefficients in the summary in b), as 'pollib1' and 'pollib2' are supposed to have fewer coups than 'pollib0'. In other words, more civil rights leads to smaller number of successful military coups.
+
+
+
+
